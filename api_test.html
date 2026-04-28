@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>API测试</title>
+</head>
+<body>
+    <h1>API测试页面</h1>
+    <div id="result">正在加载...</div>
+    <script>
+        const API_BASE = 'https://newstimeline-api.onrender.com';
+        
+        async function testAPI() {
+            const result = document.getElementById('result');
+            try {
+                const resp = await fetch(API_BASE + '/api/news?limit=3');
+                const data = await resp.json();
+                
+                result.innerHTML = `
+                    <h2>API响应成功！</h2>
+                    <p>success: ${data.success}</p>
+                    <p>total: ${data.total}</p>
+                    <p>has_more: ${data.has_more}</p>
+                    <h3>新闻列表 (${data.data.length}条):</h3>
+                    <ul>
+                        ${data.data.map(n => `<li>${n.title} (${n.source})</li>`).join('')}
+                    </ul>
+                `;
+            } catch (e) {
+                result.innerHTML = `<h2 style="color:red">错误: ${e.message}</h2>`;
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>

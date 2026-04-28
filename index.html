@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新闻时间线 - NewsTimeline</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --border: #334155;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        /* 头部 */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+        
+        .logo span { color: var(--accent); }
+        
+        /* 分类标签 */
+        .categories {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .category-btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .category-btn:hover {
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+        
+        .category-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        
+        /* 主内容区 */
+        .main {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* 新闻列表 */
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .news-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .news-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+        
+        .news-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+        
+        .news-source {
+            color: var(--accent);
+            font-weight: 500;
+        }
+        
+        .news-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .news-content {
+            font-size: 14px;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .news-tags {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .tag {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        
+        /* 状态提示 */
+        .loading, .error, .empty, .loading-more {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        
+        .loading::before {
+            content: '⏳ ';
+        }
+        
+        .error { color: var(--error); }
+        .empty { color: var(--text-secondary); }
+        .loading-more { padding: 20px; }
+        
+        /* 加载更多按钮 */
+        .load-more-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.2s;
+        }
+        
+        .load-more-btn:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        
+        .load-more-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* 统计信息 */
+        .stats {
+            display: flex;
+            gap: 20px;
+            padding: 15px 20px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .stats span { color: var(--accent); font-weight: 600; }
+        
+        /* 搜索框 */
+        .search-container {
+            margin-bottom: 20px;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 14px 18px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .search-box:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        
+        .search-box::placeholder {
+            color: var(--text-secondary);
+        }
+        
+        .search-results {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .search-results span {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        
+        .clear-search {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 13px;
+            margin-left: 10px;
+        }
+        
+        .clear-search:hover {
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部 -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="logo">📰 新闻时间线 <span>NewsTimeline</span></h1>
+            <div class="categories" id="categories">
+                <!-- 分类按钮由JS生成 -->
+            </div>
+        </div>
+    </header>
+    
+    <!-- 主内容 -->
+    <main class="main">
+        <!-- 搜索框 -->
+        <div class="search-container">
+            <input type="text" class="search-box" id="searchBox" 
+                   placeholder="🔍 搜索新闻标题或标签..." 
+                   oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+        
+        <!-- 统计信息 -->
+        <div class="stats" id="stats">
+            新闻加载中...
+        </div>
+        
+        <!-- 新闻列表 -->
+        <div class="news-list" id="newsList">
+            <div class="loading">加载新闻中...</div>
+        </div>
+        
+        <!-- 加载更多按钮 -->
+        <button class="load-more-btn" id="loadMoreBtn" style="display:none" onclick="loadMore()">
+            加载更多
+        </button>
+    </main>
+
+    <script>
+        // ========== 配置 ==========
+        // API地址 - 使用相对路径，由服务器代理到后端
+        const API_BASE = '';
+        const CATEGORIES = ['全部', '科技', '财经', '国际', '军事', '社会', '综合'];
+        const PAGE_SIZE = 15;
+        
+        // ========== 状态 ==========
+        let currentCategory = '全部';
+        let currentOffset = 0;
+        let isLoading = false;
+        let hasMore = true;
+        let totalNews = 0;
+        let allNews = [];  // 存储所有新闻用于前端搜索
+        let searchKeyword = '';
+        let searchTimeout = null;
+        
+        // ========== 初始化 ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            initCategories();
+            loadNews();
+        });
+        
+        // ========== 分类初始化 ==========
+        function initCategories() {
+            const container = document.getElementById('categories');
+            container.innerHTML = CATEGORIES.map(cat => 
+                `<button class="category-btn ${cat === currentCategory ? 'active' : ''}" 
+                         onclick="selectCategory('${cat}')">${cat}</button>`
+            ).join('');
+        }
+        
+        // ========== 选择分类 ==========
+        function selectCategory(category) {
+            currentCategory = category;
+            currentOffset = 0;
+            hasMore = true;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === category);
+            });
+            
+            // 重新加载
+            loadNews();
+        }
+        
+        // ========== 加载新闻 ==========
+        async function loadNews() {
+            if (isLoading) return;
+            isLoading = true;
+            
+            const newsList = document.getElementById('newsList');
+            newsList.innerHTML = '<div class="loading">加载新闻中...</div>';
+            
+            try {
+                // 构建URL
+                let url = `${API_BASE}/api/news?limit=${PAGE_SIZE}&offset=0`;
+                if (currentCategory !== '全部') {
+                    url += `&category=${encodeURIComponent(currentCategory)}`;
+                }
+                
+                // 请求API
+                const resp = await fetch(url);
+                const data = await resp.json();
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    currentOffset = data.data.length;
+                    totalNews = data.total || data.data.length;
+                    hasMore = data.has_more !== false;
+                    
+                    // 保存所有新闻用于前端搜索
+                    allNews = data.data;
+                    
+                    // 如果有搜索关键词，先过滤
+                    if (searchKeyword) {
+                        renderNews(filterNews(searchKeyword));
+                    } else {
+                        renderNews(data.data);
+                    }
+                    updateStats();
+                    updateLoadMoreBtn();
+                } else {
+                    newsList.innerHTML = '<div class="empty">暂无新闻</div>';
+                    updateStats();
+                }
+            } catch (e) {
+                console.error('加载失败:', e);
+                newsList.innerHTML = `<div class="error">加载失败: ${e.message}</div>
+                    <button onclick="loadNews()" style="
+                        margin-top:10px;padding:10px 20px;background:#3b82f6;
+                        color:white;border:none;border-radius:8px;cursor:pointer;
+                    ">重试</button>`;
+            }
+            
+            isLoading = false;
+        }
+        
+        // ========== 加载更多 ==========
+        async function loadMore() {
+            if (isLoading || !hasMore) return;
+            isLoading = true;
+            
+            const btn = document.getElementById('loadMoreBtn');
+            btn.textContent = '加载中...';
+            btn.disabled = true;
+            
+            try {
+                let url = `${API_BASE}/api/news?limit=${PAGE_SIZE}&offset=${currentOffset}`;
+                if (currentCategory !== '全部') {
+                    url += `&category=${encodeURIComponent(currentCategory)}`;
+                }
+                
+                const resp = await fetch(url);
+                const data = await resp.json();
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    currentOffset += data.data.length;
+                    hasMore = data.has_more !== false;
+                    
+                    appendNews(data.data);
+                    updateStats();
+                } else {
+                    hasMore = false;
+                }
+            } catch (e) {
+                console.error('加载更多失败:', e);
+            }
+            
+            btn.disabled = false;
+            updateLoadMoreBtn();
+            isLoading = false;
+        }
+        
+        // ========== 渲染新闻列表（首次加载） ==========
+        function renderNews(news) {
+            const newsList = document.getElementById('newsList');
+            newsList.innerHTML = news.map(news => createNewsCard(news)).join('');
+        }
+        
+        // ========== 追加新闻列表 ==========
+        function appendNews(news) {
+            const newsList = document.getElementById('newsList');
+            newsList.insertAdjacentHTML('beforeend', news.map(news => createNewsCard(news)).join(''));
+        }
+        
+        // ========== 创建新闻卡片HTML ==========
+        function createNewsCard(news) {
+            const time = formatTime(news.published);
+            const tags = (news.tags || []).slice(0, 3).map(tag => 
+                `<span class="tag">${tag}</span>`
+            ).join('');
+            
+            return `
+                <article class="news-card" onclick="openNews('${news.url}')">
+                    <div class="news-meta">
+                        <span class="news-source">${news.source || '未知来源'}</span>
+                        <span>·</span>
+                        <span>${time}</span>
+                        <span>·</span>
+                        <span>${news.category || '综合'}</span>
+                    </div>
+                    <h2 class="news-title">${news.title}</h2>
+                    <p class="news-content">${news.content || ''}</p>
+                    ${tags ? `<div class="news-tags">${tags}</div>` : ''}
+                </article>
+            `;
+        }
+        
+        // ========== 更新时间按钮 ==========
+        function updateLoadMoreBtn() {
+            const btn = document.getElementById('loadMoreBtn');
+            if (hasMore && currentOffset > 0) {
+                btn.style.display = 'block';
+                btn.textContent = hasMore ? '加载更多' : '没有更多了';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+        
+        // ========== 更新统计信息 ==========
+        function updateStats() {
+            const stats = document.getElementById('stats');
+            stats.innerHTML = `
+                共 <span>${totalNews}</span> 条新闻 · 
+                当前显示 <span>${currentOffset}</span> 条 ·
+                ${currentCategory !== '全部' ? `筛选: <span>${currentCategory}</span>` : '全部分类'}
+            `;
+        }
+        
+        // ========== 格式化时间 ==========
+        function formatTime(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = (now - date) / 1000;
+            
+            if (diff < 60) return '刚刚';
+            if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+            if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+            if (diff < 604800) return Math.floor(diff / 86400) + '天前';
+            
+            return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        }
+        
+        // ========== 搜索处理（防抖） ==========
+        function handleSearch(keyword) {
+            clearTimeout(searchTimeout);
+            searchKeyword = keyword.trim().toLowerCase();
+            
+            if (!searchKeyword) {
+                // 清空搜索，显示所有新闻
+                document.getElementById('searchResults').innerHTML = '';
+                if (allNews.length > 0) {
+                    renderNews(allNews);
+                    updateStats();
+                }
+                return;
+            }
+            
+            // 防抖：300ms后执行搜索
+            searchTimeout = setTimeout(() => {
+                const filtered = filterNews(searchKeyword);
+                renderNews(filtered);
+                updateStats();
+                
+                // 显示搜索结果数量
+                const searchResults = document.getElementById('searchResults');
+                if (filtered.length > 0) {
+                    searchResults.innerHTML = `找到 <span>${filtered.length}</span> 条相关新闻 
+                        <button class="clear-search" onclick="clearSearch()">清除搜索</button>`;
+                } else {
+                    searchResults.innerHTML = `未找到匹配的新闻 
+                        <button class="clear-search" onclick="clearSearch()">清除搜索</button>`;
+                }
+            }, 300);
+        }
+        
+        // ========== 过滤新闻 ==========
+        function filterNews(keyword) {
+            if (!keyword || allNews.length === 0) return allNews;
+            
+            return allNews.filter(news => {
+                const titleMatch = (news.title || '').toLowerCase().includes(keyword);
+                const tagsMatch = (news.tags || []).some(tag => 
+                    tag.toLowerCase().includes(keyword)
+                );
+                const contentMatch = (news.content || '').toLowerCase().includes(keyword);
+                const sourceMatch = (news.source || '').toLowerCase().includes(keyword);
+                
+                return titleMatch || tagsMatch || contentMatch || sourceMatch;
+            });
+        }
+        
+        // ========== 清除搜索 ==========
+        function clearSearch() {
+            document.getElementById('searchBox').value = '';
+            searchKeyword = '';
+            document.getElementById('searchResults').innerHTML = '';
+            if (allNews.length > 0) {
+                renderNews(allNews);
+                updateStats();
+            }
+        }
+        
+        // ========== 打开新闻详情 ==========
+        function openNews(url) {
+            if (url) {
+                window.open(url, '_blank');
+            }
+        }
+    </script>
+</body>
+</html>

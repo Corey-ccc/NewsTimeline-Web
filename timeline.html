@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间线 - NewsTimeline</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; line-height: 1.6; }
+        .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; position: sticky; top: 0; z-index: 100; }
+        .navbar-content { max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .back-btn { color: white; text-decoration: none; display: flex; align-items: center; padding: 8px 15px; border-radius: 20px; }
+        .back-btn:hover { background: rgba(255,255,255,0.2); }
+        .action-btn { padding: 8px 15px; background: rgba(255,255,255,0.2); border: none; border-radius: 20px; color: white; cursor: pointer; }
+        .action-btn.active { background: #ffd700; color: #333; }
+        .header { max-width: 800px; margin: 30px auto 20px; padding: 0 20px; }
+        .timeline-title { font-size: 28px; font-weight: bold; color: #333; display: flex; align-items: center; gap: 15px; }
+        .tag-badge { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 5px 15px; border-radius: 20px; font-size: 16px; }
+        .timeline-stats { color: #666; font-size: 14px; margin-top: 10px; }
+        .timeline { max-width: 800px; margin: 0 auto; padding: 20px; position: relative; }
+        .timeline::before { content: ''; position: absolute; left: 30px; top: 0; bottom: 0; width: 3px; background: linear-gradient(to bottom, #667eea, #764ba2); border-radius: 2px; }
+        .timeline-item { position: relative; padding-left: 70px; padding-bottom: 30px; }
+        .timeline-item::before { content: ''; position: absolute; left: 21px; top: 5px; width: 21px; height: 21px; background: white; border: 4px solid #667eea; border-radius: 50%; z-index: 1; }
+        .timeline-item:first-child::before { background: #667eea; box-shadow: 0 0 0 5px rgba(102, 126, 234, 0.3); }
+        .timeline-time { position: absolute; left: -5px; top: 3px; font-size: 12px; color: #999; width: 50px; text-align: right; }
+        .news-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .news-card:hover { transform: translateX(5px); }
+        .news-title { font-size: 17px; font-weight: 600; color: #333; margin-bottom: 10px; cursor: pointer; line-height: 1.5; }
+        .news-title:hover { color: #667eea; }
+        .news-content { font-size: 14px; color: #666; margin-bottom: 15px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .news-meta { display: flex; gap: 15px; font-size: 13px; color: #999; margin-bottom: 12px; }
+        .news-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag { padding: 4px 12px; background: #f0f2ff; color: #667eea; border-radius: 15px; font-size: 13px; cursor: pointer; }
+        .tag:hover { background: #667eea; color: white; }
+        .tag.current { background: #764ba2; color: white; }
+        .start-card { background: linear-gradient(to right, #f0f2ff, transparent); border-left: 4px solid #667eea; border-radius: 0 15px 15px 0; padding: 20px; margin-top: 20px; }
+        .start-card .label { font-size: 12px; color: #667eea; font-weight: bold; margin-bottom: 10px; }
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .loading::after { content: ''; display: inline-block; width: 20px; height: 20px; border: 2px solid #667eea; border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite; margin-left: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 15px; }
+        .empty-state .icon { font-size: 48px; margin-bottom: 20px; }
+        .empty-state p { color: #999; margin-bottom: 20px; }
+        .fetch-btn { padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 25px; cursor: pointer; font-size: 16px; }
+        .alert { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 200; display: none; }
+        .alert.show { display: block; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @media (max-width: 768px) { .timeline::before { left: 15px; } .timeline-item { padding-left: 45px; } .timeline-item::before { left: 6px; } .timeline-time { display: none; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="index.html" class="back-btn">← 返回首页</a>
+            <div>
+                <button class="action-btn" id="pinBtn" onclick="togglePin()">📌 置顶</button>
+                <button class="action-btn" id="collectBtn" onclick="toggleCollect()">⭐ 收藏</button>
+            </div>
+        </div>
+    </nav>
+    <div class="header">
+        <h1 class="timeline-title"><span class="tag-badge" id="tagBadge">加载中...</span></h1>
+        <div class="timeline-stats">共 <span id="totalCount">0</span> 条新闻</div>
+    </div>
+    <div class="timeline" id="timeline"><div class="loading">加载中...</div></div>
+    <div id="loadMoreTrigger" style="height: 20px;"></div>
+    <div class="alert" id="alert"></div>
+    <script>
+        const API = "https://newstimeline-api.onrender.com/api";
+        let tag="", offset=0, limit=10, isLoading=false, hasMore=true, reachedStart=false, items=[], isPinned=false, isCollected=false;
+        
+        tag = new URLSearchParams(location.search).get("tag") || "";
+        if(!tag) location.href="index.html";
+        
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("tagBadge").textContent = tag;
+            document.title = tag + " - 时间线";
+            checkState();
+            load();
+            new IntersectionObserver(e=>{if(e[0].isIntersecting&&!isLoading&&hasMore)load();},{rootMargin:"100px"}).observe(document.getElementById("loadMoreTrigger"));
+        });
+        
+        function checkState() {
+            const p=JSON.parse(localStorage.getItem("pinnedTags")||"[]");
+            const c=JSON.parse(localStorage.getItem("collectedTags")||"[]");
+            isPinned=p.includes(tag); isCollected=c.includes(tag);
+            updateBtns();
+        }
+        
+        function updateBtns() {
+            const pb=document.getElementById("pinBtn"), cb=document.getElementById("collectBtn");
+            pb.innerHTML=isPinned?"📌 已置顶":"📌 置顶"; pb.classList.toggle("active",isPinned);
+            cb.innerHTML=isCollected?"⭐ 已收藏":"⭐ 收藏"; cb.classList.toggle("active",isCollected);
+        }
+        
+        function togglePin() {
+            isPinned=!isPinned;
+            if(isPinned) { isCollected=true; addLS("pinnedTags",tag); addLS("collectedTags",tag); showAlert("已置顶并收藏"); }
+            else { removeLS("pinnedTags",tag); showAlert("已取消置顶"); }
+            updateBtns();
+        }
+        
+        function toggleCollect() {
+            isCollected=!isCollected;
+            if(isCollected) { addLS("collectedTags",tag); showAlert("已收藏"); }
+            else { removeLS("collectedTags",tag); showAlert("已取消收藏"); }
+            updateBtns();
+        }
+        
+        function addLS(k,v){let a=JSON.parse(localStorage.getItem(k)||"[]");if(!a.includes(v)){a.push(v);localStorage.setItem(k,JSON.stringify(a));}}
+        function removeLS(k,v){let a=JSON.parse(localStorage.getItem(k)||"[]");a=a.filter(x=>x!==v);localStorage.setItem(k,JSON.stringify(a));}
+        
+        async function load() {
+            if(isLoading)return;
+            isLoading=true;
+            const t=document.getElementById("timeline");
+            if(offset===0)t.innerHTML='<div class="loading">加载中...</div>';
+            try {
+                const d=await(await fetch(API+"/timeline/"+encodeURIComponent(tag)+"?limit="+limit+"&offset="+offset)).json();
+                document.getElementById("totalCount").textContent=d.total||0;
+                if(offset===0&&d.data.length===0) {
+                    t.innerHTML=`<div class="empty-state"><div class="icon">🔍</div><h3>暂无相关新闻</h3><p>这个标签下还没有新闻，是否全网搜索获取？</p><button class="fetch-btn" onclick="fetchFromWeb()">🌐 全网检索</button></div>`;
+                    isLoading=false;return;
+                }
+                if(d.has_start_point&&!d.has_more)reachedStart=true;
+                d.data.forEach(n=>items.push(n));
+                hasMore=d.has_more; offset+=d.data.length;
+                render();
+            } catch(e) { t.innerHTML=`<div class="empty-state"><div class="icon">❌</div><h3>加载失败</h3><p>${e.message}</p><button class="fetch-btn" onclick="load()">🔄 重试</button></div>`; }
+            isLoading=false;
+        }
+        
+        function render() {
+            const t=document.getElementById("timeline");
+            if(items.length===0){t.innerHTML='<div class="empty-state">暂无新闻</div>';return;}
+            t.innerHTML=items.map((n,i)=>`<div class="timeline-item"><div class="timeline-time">${fmtS(n.published)}</div>
+                <div class="news-card"><div class="news-title" onclick="window.open('${n.url}','_blank')">${n.title}</div>
+                ${n.content?`<div class="news-content">${n.content}</div>`:''}
+                <div class="news-meta"><span>📰 ${n.source}</span><span>🕐 ${fmt(n.published)}</span></div>
+                <div class="news-tags">${n.tags.map(tg=>`<span class="tag ${tg===tag?'current':''}" onclick="goTag('${tg}')">${tg}</span>`).join("")}</div></div></div>`).join("");
+            if(reachedStart&&!hasMore) t.innerHTML+=`<div class="start-card"><div class="label">🚩 时间线起点</div><p>以上是 ${tag} 的所有相关新闻</p></div>`;
+            if(hasMore) t.innerHTML+='<div class="loading" id="loadingMore">加载更多...</div>';
+            else if(items.length>0) t.innerHTML+=`<div style="text-align:center;padding:30px;color:#999">— 已加载全部 ${items.length} 条新闻 —</div>`;
+        }
+        
+        async function fetchFromWeb() {
+            showAlert("正在全网搜索...");
+            await fetch(API+"/tags/search",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:tag.replace("#","")})});
+            showAlert("已触发搜索，请稍后刷新");
+            setTimeout(()=>{offset=0;items=[];load();},2000);
+        }
+        
+        function fmt(d){if(!d)return"";const n=new Date(),date=new Date(d),diff=n-date;if(diff<60000)return"刚刚";if(diff<3600000)return Math.floor(diff/60000)+"分钟前";if(diff<86400000)return Math.floor(diff/3600000)+"小时前";if(diff<604800000)return Math.floor(diff/86400000)+"天前";return date.toLocaleDateString("zh-CN");}
+        function fmtS(d){if(!d)return"";const date=new Date(d);return`${date.getMonth()+1}/${date.getDate()}`;}
+        function goTag(t){if(t===tag)return;location.href="timeline.html?tag="+encodeURIComponent(t);}
+        function showAlert(m){const a=document.getElementById("alert");a.textContent=m;a.classList.add("show");setTimeout(()=>a.classList.remove("show"),3000);}
+    </script>
+</body>
+</html>

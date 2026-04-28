@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>完整测试</title>
+    <style>
+        .news-card { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .error { color: red; }
+        .loading { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>NewsTimeline 前端逻辑测试</h1>
+    <div id="newsFeed" class="loading">正在加载新闻...</div>
+    <div id="newsCount"></div>
+    
+    <script>
+        const API_BASE = 'https://newstimeline-api.onrender.com';
+        const SAMPLE_NEWS = [
+            {id: 1, title: '示例新闻1', sourceName: '测试来源', category: '科技'},
+            {id: 2, title: '示例新闻2', sourceName: '测试来源', category: '财经'},
+        ];
+        
+        let state = {
+            newsPage: 1,
+            currentCategory: '全部',
+            allNews: []
+        };
+        
+        async function api(endpoint, params = {}) {
+            try {
+                const url = new URL(API_BASE + endpoint);
+                Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+                console.log('请求URL:', url.toString());
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                
+                const resp = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
+                const data = await resp.json();
+                console.log('API响应:', data);
+                return data;
+            } catch (e) {
+                console.error('API错误:', e);
+                return { code: 500, message: e.message };
+            }
+        }
+        
+        async function loadNews() {
+            const feed = document.getElementById('newsFeed');
+            feed.innerHTML = '<div class="loading">正在加载新闻...</div>';
+            feed.style.color = 'blue';
+            
+            const resp = await api('/api/news', { category: state.currentCategory, page: state.newsPage, limit: 20 });
+            console.log('loadNews resp:', resp);
+            
+            // 兼容两种API格式
+            let news = [];
+            if (resp.news) {
+                news = resp.news;
+            } else if (resp.data) {
+                news = resp.data;
+            }
+            
+            console.log('解析后的news:', news);
+            
+            if (news && news.length > 0) {
+                feed.style.color = 'black';
+                feed.innerHTML = '';
+                news.forEach(item => {
+                    const html = '<div class="news-card">' +
+                        '<strong>' + item.title + '</strong>' +
+                        '<br>来源: ' + (item.sourceName || item.source || '未知') +
+                        '<br>时间: ' + (item.pubDate || item.published || '') +
+                        '</div>';
+                    feed.insertAdjacentHTML('beforeend', html);
+                });
+                document.getElementById('newsCount').textContent = '共 ' + (resp.total || news.length) + ' 条';
+            } else {
+                feed.innerHTML = '<div class="error">API返回空数据，使用示例</div>';
+                feed.style.color = 'red';
+                SAMPLE_NEWS.forEach(item => {
+                    feed.insertAdjacentHTML('beforeend', '<div class="news-card">' + item.title + '</div>');
+                });
+            }
+        }
+        
+        // 启动
+        loadNews();
+    </script>
+</body>
+</html>
