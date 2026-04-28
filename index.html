@@ -447,7 +447,7 @@
         function createNewsCard(news) {
             const time = formatTime(news.published);
             const tags = (news.tags || []).slice(0, 3).map(tag => 
-                `<span class="tag">${tag}</span>`
+                `<span class="tag" onclick="event.stopPropagation(); goToTimeline('${tag}')">${tag}</span>`
             ).join('');
             
             return `
@@ -464,6 +464,11 @@
                     ${tags ? `<div class="news-tags">${tags}</div>` : ''}
                 </article>
             `;
+        }
+        
+        // ========== 跳转到时间线 ==========
+        function goToTimeline(tag) {
+            window.location.href = `timeline.html?tag=${encodeURIComponent(tag)}`;
         }
         
         // ========== 更新时间按钮 ==========
