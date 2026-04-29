@@ -54,6 +54,7 @@
             padding: 8px 16px;
             border-radius: 8px;
             transition: background 0.2s;
+            font-size: 14px;
         }
         
         .back-btn:hover {
@@ -111,15 +112,22 @@
         .tag-badge {
             background: var(--accent);
             color: white;
-            padding: 6px 16px;
+            padding: 8px 20px;
             border-radius: 20px;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 500;
         }
         
         .timeline-stats {
             color: var(--text-secondary);
             font-size: 14px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .timeline-stats span {
+            color: var(--accent);
+            font-weight: 600;
         }
         
         /* 时间线 */
@@ -147,7 +155,7 @@
             content: '';
             position: absolute;
             left: -26px;
-            top: 6px;
+            top: 8px;
             width: 12px;
             height: 12px;
             background: var(--bg-primary);
@@ -210,6 +218,12 @@
             gap: 5px;
         }
         
+        .news-source {
+            color: var(--accent);
+            font-weight: 500;
+        }
+        
+        /* 标签样式 */
         .news-tags {
             display: flex;
             flex-wrap: wrap;
@@ -217,23 +231,58 @@
         }
         
         .tag {
+            display: inline-flex;
+            align-items: center;
             padding: 4px 12px;
-            background: var(--bg-primary);
-            color: var(--accent);
             border-radius: 15px;
             font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
         }
         
-        .tag:hover {
-            background: var(--accent);
-            color: white;
+        /* 标签颜色分类 */
+        .tag-tech {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        .tag-tech:hover { background: rgba(59, 130, 246, 0.25); }
+        
+        .tag-finance {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .tag-finance:hover { background: rgba(34, 197, 94, 0.25); }
+        
+        .tag-military {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .tag-military:hover { background: rgba(239, 68, 68, 0.25); }
+        
+        .tag-international {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+        .tag-international:hover { background: rgba(168, 85, 247, 0.25); }
+        
+        .tag-default {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .tag-default:hover { 
+            border-color: var(--accent);
+            color: var(--text-primary);
         }
         
         .tag.current {
             background: var(--accent);
             color: white;
+            border-color: var(--accent);
         }
         
         /* 加载状态 */
@@ -281,6 +330,20 @@
         .empty-state p {
             color: var(--text-secondary);
             margin-bottom: 20px;
+        }
+        
+        .empty-state a {
+            display: inline-block;
+            padding: 10px 24px;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        
+        .empty-state a:hover {
+            background: var(--accent-hover);
         }
         
         /* 时间线终点 */
@@ -348,6 +411,11 @@
                 align-items: flex-start;
                 gap: 10px;
             }
+            
+            .timeline-stats {
+                flex-direction: column;
+                gap: 5px;
+            }
         }
     </style>
 </head>
@@ -367,7 +435,10 @@
             <h1 class="timeline-title">
                 <span class="tag-badge" id="tagBadge">#加载中...</span>
             </h1>
-            <div class="timeline-stats">共 <span id="totalCount">0</span> 条新闻 · 按时间排序</div>
+            <div class="timeline-stats">
+                <span>📰</span> 共 <span id="totalCount">0</span> 条新闻
+                <span>·</span> 按时间排序
+            </div>
         </div>
         
         <div class="timeline" id="timeline">
@@ -381,10 +452,19 @@
         // API 配置
         const API = "https://newstimeline-api.onrender.com/api";
         
+        // 标签分类关键词
+        const TAG_CATEGORIES = {
+            tech: ['科技', 'AI', '技术', '芯片', '互联网', '软件', '手机', '电脑', '智能', '机器人', '自动驾驶', '5G', '量子', '大模型', 'ChatGPT', 'OpenAI', '英伟达', '华为', '苹果', '谷歌', '微软', '特斯拉', '马斯克', '脑机接口'],
+            finance: ['财经', '经济', '股市', '金融', '投资', '银行', '货币', '通胀', '比特币', '美股', '港股', '基金', '降息', '加息', '美联储', '央行', 'GDP', '融资', '上市'],
+            military: ['军事', '战争', '武器', '军队', '导弹', '国防', '航母', '演习', '核', '冲突', '制裁', '以色列', '伊朗', '乌克兰', '俄罗斯', '北约'],
+            international: ['国际', '外交', '峰会', '美国', '中国', '欧洲', '亚洲', '中东', '联合国', 'G20', '欧盟', '英国', '法国', '德国', '日本', '韩国', '朝鲜', '普京', '拜登', '特朗普']
+        };
+        
         // 状态
         let tag = "";
+        let displayTag = ""; // 用于显示的原始标签
         let offset = 0;
-        let limit = 10;
+        let limit = 20;
         let isLoading = false;
         let hasMore = true;
         let items = [];
@@ -392,7 +472,9 @@
         let isCollected = false;
         
         // 获取 URL 参数
-        tag = new URLSearchParams(location.search).get("tag") || "";
+        const params = new URLSearchParams(location.search);
+        tag = params.get("tag") || "";
+        
         if (!tag) {
             location.href = "index.html";
             throw new Error("No tag");
@@ -400,27 +482,38 @@
         
         // 初始化
         document.addEventListener("DOMContentLoaded", () => {
-            document.getElementById("tagBadge").textContent = "#" + tag;
+            // 标签可能带#号
+            displayTag = tag.startsWith('#') ? tag : '#' + tag;
+            if (!tag.startsWith('#')) {
+                tag = '#' + tag;
+            }
+            
+            document.getElementById("tagBadge").textContent = tag;
             document.title = tag + " - 时间线 - NewsTimeline";
             checkState();
             load();
-            
-            // 无限滚动
-            const observer = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting && !isLoading && hasMore) {
-                    load();
-                }
-            }, { rootMargin: "100px" });
-            
-            observer.observe(document.getElementById("timeline"));
         });
+        
+        // 获取标签样式类
+        function getTagClass(t) {
+            const tagText = t.replace('#', '');
+            for (const [category, keywords] of Object.entries(TAG_CATEGORIES)) {
+                if (keywords.some(kw => tagText.includes(kw) || kw.includes(tagText))) {
+                    return `tag-${category}`;
+                }
+            }
+            return 'tag-default';
+        }
         
         // 检查本地状态
         function checkState() {
             const pinned = JSON.parse(localStorage.getItem("pinnedTags") || "[]");
             const collected = JSON.parse(localStorage.getItem("collectedTags") || "[]");
-            isPinned = pinned.includes(tag);
-            isCollected = collected.includes(tag);
+            
+            // 标准化比较（带不带#号都行）
+            const normalizeTag = t => t.replace('#', '');
+            isPinned = pinned.some(t => normalizeTag(t) === normalizeTag(tag));
+            isCollected = collected.some(t => normalizeTag(t) === normalizeTag(tag));
             updateButtons();
         }
         
@@ -437,13 +530,15 @@
         
         function togglePin() {
             isPinned = !isPinned;
+            const storeTag = tag.replace('#', ''); // 统一存储不带#的标签
+            
             if (isPinned) {
                 isCollected = true;
-                addToLocalStorage("pinnedTags", tag);
-                addToLocalStorage("collectedTags", tag);
+                addToLocalStorage("pinnedTags", storeTag);
+                addToLocalStorage("collectedTags", storeTag);
                 showAlert("已置顶并收藏");
             } else {
-                removeFromLocalStorage("pinnedTags", tag);
+                removeFromLocalStorage("pinnedTags", storeTag);
                 showAlert("已取消置顶");
             }
             updateButtons();
@@ -451,11 +546,13 @@
         
         function toggleCollect() {
             isCollected = !isCollected;
+            const storeTag = tag.replace('#', '');
+            
             if (isCollected) {
-                addToLocalStorage("collectedTags", tag);
+                addToLocalStorage("collectedTags", storeTag);
                 showAlert("已收藏");
             } else {
-                removeFromLocalStorage("collectedTags", tag);
+                removeFromLocalStorage("collectedTags", storeTag);
                 showAlert("已取消收藏");
             }
             updateButtons();
@@ -463,7 +560,8 @@
         
         function addToLocalStorage(key, value) {
             let arr = JSON.parse(localStorage.getItem(key) || "[]");
-            if (!arr.includes(value)) {
+            const normalized = arr.map(t => t.replace('#', ''));
+            if (!normalized.includes(value.replace('#', ''))) {
                 arr.push(value);
                 localStorage.setItem(key, JSON.stringify(arr));
             }
@@ -471,7 +569,7 @@
         
         function removeFromLocalStorage(key, value) {
             let arr = JSON.parse(localStorage.getItem(key) || "[]");
-            arr = arr.filter(x => x !== value);
+            arr = arr.filter(x => x.replace('#', '') !== value.replace('#', ''));
             localStorage.setItem(key, JSON.stringify(arr));
         }
         
@@ -487,34 +585,42 @@
             }
             
             try {
-                // 使用搜索 API 过滤标签
-                const url = `${API}/news?limit=${limit}&offset=${offset}&keyword=${encodeURIComponent(tag)}`;
+                // 搜索时去掉#号
+                const searchTag = tag.replace('#', '');
+                const url = `${API}/news?limit=${limit}&offset=${offset}&keyword=${encodeURIComponent(searchTag)}&refresh=true`;
+                
                 const response = await fetch(url);
                 const data = await response.json();
                 
                 document.getElementById("totalCount").textContent = data.total || 0;
                 
-                if (offset === 0 && data.data.length === 0) {
+                if (offset === 0 && (!data.data || data.data.length === 0)) {
                     container.innerHTML = `
                         <div class="empty-state">
                             <div class="icon">🔍</div>
                             <h3>暂无相关新闻</h3>
                             <p>标签 "${tag}" 下还没有新闻</p>
+                            <a href="index.html">← 返回首页</a>
                         </div>
                     `;
                     isLoading = false;
                     return;
                 }
                 
-                // 添加数据
+                // 筛选包含该标签的新闻
+                const searchTagLower = searchTag.toLowerCase();
                 data.data.forEach(news => {
-                    // 检查是否包含该标签
-                    if (news.tags && news.tags.includes(tag)) {
+                    const newsTags = news.tags || [];
+                    // 检查是否包含该标签（带不带#号都匹配）
+                    const hasTag = newsTags.some(t => 
+                        t.replace('#', '').toLowerCase() === searchTagLower
+                    );
+                    if (hasTag) {
                         items.push(news);
                     }
                 });
                 
-                hasMore = data.has_more;
+                hasMore = data.has_more !== false;
                 offset += data.data.length;
                 
                 render();
@@ -524,7 +630,7 @@
                         <div class="icon">❌</div>
                         <h3>加载失败</h3>
                         <p>${e.message}</p>
-                        <button onclick="load()" style="margin-top: 10px; padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer;">🔄 重试</button>
+                        <a href="index.html">← 返回首页</a>
                     </div>
                 `;
             }
@@ -537,34 +643,46 @@
             const container = document.getElementById("timeline");
             
             if (items.length === 0) {
-                container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>暂无新闻</h3></div>';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <h3>暂无新闻</h3>
+                        <p>标签 "${tag}" 下还没有新闻</p>
+                        <a href="index.html">← 返回首页</a>
+                    </div>
+                `;
                 return;
             }
             
             // 按时间排序（新的在前）
             const sorted = [...items].sort((a, b) => {
-                return new Date(b.published) - new Date(a.published);
+                return new Date(b.published || 0) - new Date(a.published || 0);
             });
             
-            container.innerHTML = sorted.map(news => `
-                <div class="timeline-item">
-                    <div class="news-card">
-                        <div class="news-title" onclick="window.open('${news.url}', '_blank')">
-                            ${news.title}
-                        </div>
-                        ${news.content ? `<div class="news-content">${news.content}</div>` : ''}
-                        <div class="news-meta">
-                            <span>📰 ${news.source || '未知来源'}</span>
-                            <span>🕐 ${formatTime(news.published)}</span>
-                        </div>
-                        <div class="news-tags">
-                            ${(news.tags || []).map(t => 
-                                `<span class="tag ${t === tag ? 'current' : ''}" onclick="goTag('${t}')">${t}</span>`
-                            ).join('')}
+            container.innerHTML = sorted.map(news => {
+                const newsTags = news.tags || [];
+                const tagHtml = newsTags.map(t => {
+                    const isCurrent = t.replace('#', '').toLowerCase() === tag.replace('#', '').toLowerCase();
+                    const tagClass = getTagClass(t);
+                    return `<span class="tag ${tagClass} ${isCurrent ? 'current' : ''}" onclick="goTag('${t.replace('#', '')}')">${t}</span>`;
+                }).join('');
+                
+                return `
+                    <div class="timeline-item">
+                        <div class="news-card">
+                            <div class="news-title" onclick="window.open('${news.url || '#'}', '_blank')">
+                                ${news.title}
+                            </div>
+                            ${news.content ? `<div class="news-content">${news.content}</div>` : ''}
+                            <div class="news-meta">
+                                <span class="news-source">📰 ${news.source || '未知来源'}</span>
+                                <span>🕐 ${formatTime(news.published)}</span>
+                            </div>
+                            ${tagHtml ? `<div class="news-tags">${tagHtml}</div>` : ''}
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
             if (!hasMore) {
                 container.innerHTML += `
@@ -573,11 +691,31 @@
                         <p>以上是 "${tag}" 的全部 ${items.length} 条相关新闻</p>
                     </div>
                 `;
+            } else if (items.length >= 10) {
+                // 如果还有更多，加载更多
+                container.innerHTML += `
+                    <div style="text-align: center; padding: 20px;">
+                        <button onclick="loadMore()" style="
+                            padding: 12px 24px;
+                            background: var(--bg-card);
+                            border: 1px solid var(--border);
+                            border-radius: 8px;
+                            color: var(--text-primary);
+                            cursor: pointer;
+                            font-size: 14px;
+                        ">加载更多</button>
+                    </div>
+                `;
             }
         }
         
+        async function loadMore() {
+            await load();
+        }
+        
         function goTag(t) {
-            if (t === tag) return;
+            const normalizedT = t.startsWith('#') ? t : '#' + t;
+            if (normalizedT.replace('#', '').toLowerCase() === tag.replace('#', '').toLowerCase()) return;
             location.href = "timeline.html?tag=" + encodeURIComponent(t);
         }
         
@@ -603,7 +741,7 @@
             const alert = document.getElementById("alert");
             alert.textContent = message;
             alert.classList.add("show");
-            setTimeout(() => alert.classList.remove("show"), 3000);
+            setTimeout(() => alert.classList.remove("show"), 2000);
         }
     </script>
 </body>
