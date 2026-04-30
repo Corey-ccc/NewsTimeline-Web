@@ -369,6 +369,159 @@
             .stats { flex-direction: column; gap: 8px; }
             .news-header { flex-direction: column; gap: 8px; }
         }
+        
+        /* ========== 新增：搜索增强样式 ========== */
+        
+        /* 热门标签区域 */
+        .hot-tags-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .hot-tags-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .hot-tags-title {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .hot-tags-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .hot-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .hot-tag:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-1px);
+        }
+        
+        .hot-tag .fire {
+            margin-right: 4px;
+        }
+        
+        /* 推荐下拉 */
+        .suggest-dropdown {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        
+        .suggest-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-top: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .suggest-box.hidden {
+            display: none;
+        }
+        
+        .suggest-header {
+            padding: 10px 15px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .suggest-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.15s;
+        }
+        
+        .suggest-item:hover {
+            background: var(--bg-primary);
+        }
+        
+        .suggest-item.active {
+            background: rgba(59, 130, 246, 0.15);
+        }
+        
+        .suggest-tag {
+            font-size: 14px;
+            color: var(--accent);
+            font-weight: 500;
+        }
+        
+        .suggest-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        
+        .suggest-empty {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        
+        .suggest-create {
+            padding: 15px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+        
+        .create-tag-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .create-tag-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+        
+        /* 搜索结果高亮 */
+        .highlight {
+            color: var(--accent);
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -387,10 +540,29 @@
     <main class="main">
         <!-- 搜索框 -->
         <div class="search-container">
-            <input type="text" class="search-box" id="searchBox" 
-                   placeholder="🔍 搜索新闻标题或标签...（如：#AI #华为 #马斯克）" 
-                   oninput="handleSearch(this.value)">
+            <div class="suggest-dropdown">
+                <input type="text" class="search-box" id="searchBox" 
+                       placeholder="🔍 搜索新闻标题或标签...（如：#AI #华为 #马斯克）" 
+                       oninput="handleSearch(this.value)"
+                       onfocus="showSuggestDropdown()"
+                       onblur="hideSuggestDropdownDelayed()"
+                       onkeydown="handleSearchKeydown(event)">
+                <div class="suggest-box hidden" id="suggestBox">
+                    <div class="suggest-header" id="suggestHeader">📋 推荐标签</div>
+                    <div id="suggestList"></div>
+                </div>
+            </div>
             <div class="search-results" id="searchResults"></div>
+        </div>
+        
+        <!-- 热门标签区域 -->
+        <div class="hot-tags-container" id="hotTagsContainer">
+            <div class="hot-tags-header">
+                <span class="hot-tags-title">🔥 热门标签</span>
+            </div>
+            <div class="hot-tags-list" id="hotTagsList">
+                <span class="loading">加载中...</span>
+            </div>
         </div>
         
         <!-- 统计信息 -->
@@ -418,6 +590,7 @@
         const CATEGORIES = ['全部', '科技', '财经', '国际', '军事', '社会', '综合'];
         const PAGE_SIZE = 15;
         const MAX_TAGS_SHOW = 8; // 最多显示8个标签
+        const DEBOUNCE_DELAY = 300; // 搜索防抖延迟
         
         // 标签分类关键词
         const TAG_CATEGORIES = {
@@ -437,11 +610,45 @@
         let searchKeyword = '';
         let searchTimeout = null;
         
+        // ========== 新增：搜索推荐状态 ==========
+        let suggestResults = [];
+        let currentSuggestIndex = -1;
+        let lastQuery = '';
+        
         // ========== 初始化 ==========
         document.addEventListener('DOMContentLoaded', () => {
             initCategories();
+            loadHotTags();  // 加载热门标签
             loadNews();
         });
+        
+        // ========== 加载热门标签 ==========
+        async function loadHotTags() {
+            const container = document.getElementById('hotTagsList');
+            try {
+                const resp = await fetch(`${API_BASE}/api/tags/hot?limit=12`);
+                const data = await resp.json();
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    container.innerHTML = data.data.map(item => `
+                        <span class="hot-tag" onclick="selectHotTag('${item.tag}')">
+                            <span class="fire">🔥</span>${item.tag}
+                        </span>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<span class="empty">暂无热门标签</span>';
+                }
+            } catch (e) {
+                console.error('加载热门标签失败:', e);
+                container.innerHTML = '<span class="empty">加载失败</span>';
+            }
+        }
+        
+        // ========== 选择热门标签 ==========
+        function selectHotTag(tag) {
+            document.getElementById('searchBox').value = tag;
+            goToTimeline(tag);
+        }
         
         // ========== 分类初始化 ==========
         function initCategories() {
@@ -668,12 +875,14 @@
             return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
         }
         
-        // ========== 搜索处理（防抖） ==========
-        function handleSearch(keyword) {
+        // ========== 搜索处理（防抖 + 推荐） ==========
+        async function handleSearch(keyword) {
             clearTimeout(searchTimeout);
-            searchKeyword = keyword.trim().toLowerCase();
+            searchKeyword = keyword.trim();
             
+            // 如果清空了搜索
             if (!searchKeyword) {
+                hideSuggestDropdown();
                 document.getElementById('searchResults').innerHTML = '';
                 if (allNews.length > 0) {
                     renderNews(allNews);
@@ -682,7 +891,11 @@
                 return;
             }
             
-            searchTimeout = setTimeout(() => {
+            searchTimeout = setTimeout(async () => {
+                // 调用推荐API
+                await fetchSuggestions(searchKeyword);
+                
+                // 同时进行新闻搜索
                 const filtered = filterNews(searchKeyword);
                 renderNews(filtered);
                 document.getElementById('showCount').textContent = filtered.length;
@@ -695,7 +908,135 @@
                     searchResults.innerHTML = `未找到匹配的新闻 
                         <button class="clear-search" onclick="clearSearch()">清除搜索</button>`;
                 }
-            }, 300);
+            }, DEBOUNCE_DELAY);
+        }
+        
+        // ========== 获取推荐标签 ==========
+        async function fetchSuggestions(query) {
+            if (!query || query.length < 1) {
+                hideSuggestDropdown();
+                return;
+            }
+            
+            try {
+                const resp = await fetch(`${API_BASE}/api/tags/suggest?q=${encodeURIComponent(query)}&limit=10`);
+                const data = await resp.json();
+                
+                if (data.success) {
+                    suggestResults = data.suggestions || [];
+                    lastQuery = query;
+                    currentSuggestIndex = -1;
+                    renderSuggestions(query);
+                }
+            } catch (e) {
+                console.error('获取推荐失败:', e);
+            }
+        }
+        
+        // ========== 渲染推荐下拉 ==========
+        function renderSuggestions(query) {
+            const box = document.getElementById('suggestBox');
+            const list = document.getElementById('suggestList');
+            const header = document.getElementById('suggestHeader');
+            
+            if (!query || suggestResults.length === 0) {
+                // 没有推荐结果，显示创建按钮
+                list.innerHTML = `
+                    <div class="suggest-empty">
+                        <p>未找到匹配的标签</p>
+                    </div>
+                    <div class="suggest-create">
+                        <button class="create-tag-btn" onclick="createNewTag('${query}')">
+                            ➕ 创建标签 "${query}"
+                        </button>
+                    </div>
+                `;
+                header.textContent = '📋 未找到匹配标签';
+                showSuggestDropdown();
+                return;
+            }
+            
+            // 有推荐结果
+            list.innerHTML = suggestResults.map((item, index) => `
+                <div class="suggest-item ${index === currentSuggestIndex ? 'active' : ''}" 
+                     data-index="${index}"
+                     onclick="selectSuggestItem(${index})">
+                    <span class="suggest-tag">${item.tag}</span>
+                    <span class="suggest-count">${item.count} 条</span>
+                </div>
+            `).join('');
+            
+            header.textContent = `📋 推荐标签 (${suggestResults.length} 个)`;
+            showSuggestDropdown();
+        }
+        
+        // ========== 选择推荐项 ==========
+        function selectSuggestItem(index) {
+            if (index >= 0 && index < suggestResults.length) {
+                const item = suggestResults[index];
+                document.getElementById('searchBox').value = item.tag;
+                hideSuggestDropdown();
+                goToTimeline(item.tag);
+            }
+        }
+        
+        // ========== 创建新标签 ==========
+        function createNewTag(tagName) {
+            // TODO: 实现创建标签功能 (P1阶段)
+            alert(`创建标签功能 (P1阶段): ${tagName}\n\n将实现：\n1. 抓取外部新闻源\n2. 为新闻打标签\n3. 更新已有新闻`);
+            hideSuggestDropdown();
+        }
+        
+        // ========== 键盘导航 ==========
+        function handleSearchKeydown(event) {
+            if (!suggestResults.length) return;
+            
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                currentSuggestIndex = Math.min(currentSuggestIndex + 1, suggestResults.length - 1);
+                updateSuggestHighlight();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                currentSuggestIndex = Math.max(currentSuggestIndex - 1, -1);
+                updateSuggestHighlight();
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                if (currentSuggestIndex >= 0) {
+                    selectSuggestItem(currentSuggestIndex);
+                } else {
+                    // 直接搜索
+                    handleSearch(document.getElementById('searchBox').value);
+                }
+            } else if (event.key === 'Escape') {
+                hideSuggestDropdown();
+            }
+        }
+        
+        // ========== 更新推荐高亮 ==========
+        function updateSuggestHighlight() {
+            document.querySelectorAll('.suggest-item').forEach((item, index) => {
+                item.classList.toggle('active', index === currentSuggestIndex);
+            });
+        }
+        
+        // ========== 显示/隐藏推荐下拉 ==========
+        function showSuggestDropdown() {
+            const box = document.getElementById('suggestBox');
+            if (suggestResults.length > 0 || lastQuery.length > 0) {
+                box.classList.remove('hidden');
+            }
+        }
+        
+        function hideSuggestDropdown() {
+            document.getElementById('suggestBox').classList.add('hidden');
+            currentSuggestIndex = -1;
+        }
+        
+        function hideSuggestDropdownDelayed() {
+            // 延迟隐藏，优先处理点击事件
+            setTimeout(() => {
+                hideSuggestDropdown();
+            }, 200);
         }
         
         // ========== 过滤新闻 ==========
@@ -703,7 +1044,7 @@
             if (!keyword || allNews.length === 0) return allNews;
             
             // 支持搜索带#或不带#的标签
-            const cleanKeyword = keyword.replace('#', '');
+            const cleanKeyword = keyword.toLowerCase().replace('#', '');
             
             return allNews.filter(news => {
                 const titleMatch = (news.title || '').toLowerCase().includes(cleanKeyword);
