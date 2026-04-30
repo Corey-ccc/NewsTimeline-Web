@@ -704,7 +704,7 @@
         // ========== 选择热门标签 ==========
         function selectHotTag(tag) {
             document.getElementById('searchBox').value = tag;
-            showTagTimeline(tag);  // 在当前页面显示时间线
+            goToTimeline(tag);  // 跳转到时间线页面
         }
         
         // ========== 分类初始化 ==========
@@ -1033,7 +1033,7 @@
                 const item = suggestResults[index];
                 document.getElementById('searchBox').value = item.tag;
                 hideSuggestDropdown();
-                showTagTimeline(item.tag);  // 在当前页面显示时间线
+                goToTimeline(item.tag);  // 跳转到时间线页面
             }
         }
         
@@ -1233,55 +1233,14 @@
             }
         }
         
-        // ========== 跳转到时间线 (P1) ==========
+        // ========== 跳转到时间线页面 ==========
         function goToTimeline(tag) {
-            // 标准化标签
             const cleanTag = tag.replace('#', '').trim();
-            // 在当前页面显示时间线
-            showTagTimeline('#' + cleanTag);
+            window.location.href = `timeline.html?tag=${encodeURIComponent(cleanTag)}`;
         }
         
         // ========== P2: 时间线页面整合 - 在当前页面显示标签时间线 ==========
-        function showTagTimeline(tag) {
-            const cleanTag = tag.replace('#', '').trim();
-            
-            // 显示加载状态
-            const newsList = document.getElementById('newsList');
-            newsList.innerHTML = `<div class="loading">加载 #${cleanTag} 标签下的新闻...</div>`;
-            
-            // 调用API获取该标签下的新闻
-            fetch(`${API_BASE}/api/news/by_tag/${encodeURIComponent(cleanTag)}`)
-                .then(resp => resp.json())
-                .then(data => {
-                    if (data.success && data.data.length > 0) {
-                        // 添加时间线样式
-                        newsList.innerHTML = `
-                            <div class="timeline-header">
-                                <span class="timeline-icon">🏷️</span>
-                                <h2>标签 #${cleanTag}</h2>
-                                <span class="timeline-count">${data.total} 条新闻</span>
-                                <button class="back-btn" onclick="loadNews()">← 返回全部</button>
-                            </div>
-                            <div class="news-list" id="timelineNews"></div>
-                        `;
-                        
-                        // 渲染新闻
-                        renderNews(data.data);
-                    } else {
-                        newsList.innerHTML = `
-                            <div class="empty-state">
-                                <p>📭 暂无 #${cleanTag} 标签下的新闻</p>
-                                <button class="btn-primary" onclick="createNewTag('${cleanTag}')">
-                                    创建该标签 +
-                                </button>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    newsList.innerHTML = `<div class="error">加载失败: ${err.message}</div>`;
-                });
-        }
+        // 已废弃，改用 goToTimeline() 跳转到 timeline.html
         
         // ========== 键盘导航 ==========
         function handleSearchKeydown(event) {
